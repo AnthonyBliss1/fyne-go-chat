@@ -1,0 +1,32 @@
+/**
+* @license
+*
+* Font Family: Tabular
+* Designed by: Jérémie Hornus, Julie Soudanne
+* URL: https://www.fontshare.com/fonts/tabular
+* © 2025 Indian Type Foundry
+*
+* Tabular Light 
+* Tabular Regular 
+
+*
+*/
+@font-face {
+  font-family: 'Tabular-Light';
+  src: url('../fonts/Tabular-Light.woff2') format('woff2'),
+       url('../fonts/Tabular-Light.woff') format('woff'),
+       url('../fonts/Tabular-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Tabular-Regular';
+  src: url('../fonts/Tabular-Regular.woff2') format('woff2'),
+       url('../fonts/Tabular-Regular.woff') format('woff'),
+       url('../fonts/Tabular-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+  font-style: normal;
+}
+
