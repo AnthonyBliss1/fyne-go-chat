@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"embed"
 	_ "embed"
 	"fmt"
 	"image/color"
 	"io"
+	"log"
 	"net"
 	"strings"
 
@@ -22,26 +24,46 @@ import (
 	ui "github.com/anthonybliss1/fyne-go-chat/ui/theme"
 )
 
-//go:embed send.svg
-var sendPng []byte
+//go:embed send.svg icon.png connect.svg
+var embeddedAssets embed.FS
 
-var sendIcon = fyne.NewStaticResource("send.svg", sendPng)
+var sendIcon, appIcon, connectIcon fyne.Resource
+
+func init() {
+	send, err := embeddedAssets.ReadFile("send.svg")
+	if err != nil {
+		log.Panicf("failed to load send.svg: %q", err)
+	}
+	sendIcon = fyne.NewStaticResource("send.svg", send)
+
+	icon, err := embeddedAssets.ReadFile("icon.png")
+	if err != nil {
+		log.Panicf("failed to load icon.png: %q", err)
+	}
+	appIcon = fyne.NewStaticResource("icon.png", icon)
+
+	connect, err := embeddedAssets.ReadFile("connect.svg")
+	if err != nil {
+		log.Panicf("failed to load connect.svg: %q", err)
+	}
+	connectIcon = fyne.NewStaticResource("connect.svg", connect)
+}
 
 func generateConnectionWindow(a fyne.App) fyne.Window {
 	w := a.NewWindow("Connect to Server")
 
 	title := canvas.NewText("Connect to Server", color.White)
 	title.TextSize = 30
-	title.TextStyle.Italic = true
+	//title.TextStyle.Italic = true
 	title.Alignment = fyne.TextAlignCenter
 
 	displayName := widget.NewEntry()
-	displayName.SetPlaceHolder("Enter Display Name")
+	displayName.SetPlaceHolder("Display Name")
 
 	serverAddress := widget.NewEntry()
-	serverAddress.SetPlaceHolder("Enter Server Address")
+	serverAddress.SetPlaceHolder("Server Address")
 
-	connectBtn := widget.NewButton("Connect", func() {
+	connectBtn := widget.NewButtonWithIcon("Connect", connectIcon, func() {
 		conn, t := dialServer(w, displayName, serverAddress)
 
 		if t {
@@ -60,6 +82,7 @@ func generateConnectionWindow(a fyne.App) fyne.Window {
 		serverAddress,
 		layout.NewSpacer(),
 		connectBtn,
+		layout.NewSpacer(),
 	))
 
 	w.SetOnClosed(func() { a.Quit() })
@@ -71,9 +94,25 @@ func generateConnectionWindow(a fyne.App) fyne.Window {
 }
 
 func generateMessengerWindow(a fyne.App, displayName string, conn net.Conn) fyne.Window {
+	var isBanner = false
 	w := a.NewWindow("Go Chat Messenger")
 
 	msgArea := container.New(layout.NewVBoxLayout())
+
+	banner := `
+ ______     ______        ______     __  __     ______     ______
+/\  ___\   /\  __ \      /\  ___\   /\ \_\ \   /\  __ \   /\__  _\
+\ \ \__ \  \ \ \/\ \     \ \ \____  \ \  __ \  \ \  __ \  \/_/\ \/
+ \ \_____\  \ \_____\     \ \_____\  \ \_\ \_\  \ \_\ \_\    \ \_\
+  \/_____/   \/_____/      \/_____/   \/_/\/_/   \/_/\/_/     \/_/
+
+Hi %s
+Welcome to Go Chat!
+
+`
+	goChatLabel := widget.NewLabelWithStyle(fmt.Sprintf(banner, displayName), fyne.TextAlignCenter, fyne.TextStyle{})
+	msgArea.Add(goChatLabel)
+	isBanner = true
 
 	scrollArea := container.NewVScroll(msgArea)
 
@@ -81,9 +120,15 @@ func generateMessengerWindow(a fyne.App, displayName string, conn net.Conn) fyne
 	msg.SetPlaceHolder("Send a message...")
 
 	send := func() {
+		if isBanner {
+			msgArea.Remove(goChatLabel)
+			isBanner = false
+		}
 		msgBubble := generateMessageBubble(msg.Text, displayName, true)
-		msgArea.Add(msgBubble)
-		scrollArea.ScrollToBottom()
+		fyne.Do(func() {
+			msgArea.Add(msgBubble)
+			scrollArea.ScrollToBottom()
+		})
 		if err := utils.SendMessage(conn, displayName, msg.Text); err != nil {
 			dialog.ShowInformation("Error Sending Message", fmt.Sprintf("%s", err), w)
 		}
@@ -163,7 +208,7 @@ func dialServer(window fyne.Window, displayName, serverAddress *widget.Entry) (n
 		return nil, false
 	}
 
-	utils.PlaySound("assets/zelda_secret.mp3")
+	utils.PlaySound("sounds/zelda_secret.mp3")
 	return conn, true
 }
 
@@ -174,27 +219,39 @@ func incomingMessage(conn net.Conn, msgArea *fyne.Container, scrollArea *contain
 		line, err := rd.ReadString('\n')
 		if err != nil {
 			if err != io.EOF {
-				msgBubble = generateMessageBubble("<Server Disconnected>", "Server", false)
-				utils.PlaySound("assets/noti.mp3")
-			} else {
 				msgBubble = generateMessageBubble(fmt.Sprintf("%q", err), "Server", false)
-				utils.PlaySound("assets/noti.mp3")
+				utils.PlaySound("sounds/noti.mp3")
+				fyne.Do(func() {
+					msgArea.Add(msgBubble)
+					scrollArea.ScrollToBottom()
+				})
+				break
+			} else {
+				msgBubble = generateMessageBubble("<Server Disconnected>", "Server", false)
+				utils.PlaySound("sounds/noti.mp3")
+				fyne.Do(func() {
+					msgArea.Add(msgBubble)
+					scrollArea.ScrollToBottom()
+				})
+				break
 			}
 		}
 
 		if t, senderName, text := utils.ExtractName(strings.TrimRight(line, "\r\n")); t {
 			msgBubble = generateMessageBubble(text, senderName, false)
-			utils.PlaySound("assets/noti.mp3")
+			utils.PlaySound("sounds/noti.mp3")
 		} else {
 			msgBubble = generateMessageBubble(strings.TrimRight(line, "\r\n"), "Server", false)
-			utils.PlaySound("assets/noti.mp3")
+			utils.PlaySound("sounds/noti.mp3")
 		}
 		fyne.CurrentApp().SendNotification(&fyne.Notification{
 			Title: "New Message",
 		})
 
-		msgArea.Add(msgBubble)
-		scrollArea.ScrollToBottom()
+		fyne.Do(func() {
+			msgArea.Add(msgBubble)
+			scrollArea.ScrollToBottom()
+		})
 	}
 }
 
@@ -206,6 +263,7 @@ func main() {
 		Theme:   base,
 		Variant: theme.VariantDark,
 	})
+	a.SetIcon(appIcon)
 
 	connection := generateConnectionWindow(a)
 	connection.Show()

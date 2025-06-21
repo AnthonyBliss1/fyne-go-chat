@@ -13,7 +13,7 @@ import (
 	"github.com/faiface/beep/speaker"
 )
 
-//go:embed assets/*.mp3
+//go:embed sounds/*.mp3
 var soundAssets embed.FS
 
 func EstablishConnection(displayName string, raw_addy string) (net.Conn, error) {
