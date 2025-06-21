@@ -120,19 +120,22 @@ Welcome to Go Chat!
 	msg.SetPlaceHolder("Send a message...")
 
 	send := func() {
-		if isBanner {
-			msgArea.Remove(goChatLabel)
-			isBanner = false
+		if msg.Text != "" {
+			if isBanner {
+				msgArea.Remove(goChatLabel)
+				isBanner = false
+			}
+
+			msgBubble := generateMessageBubble(msg.Text, displayName, true)
+			fyne.Do(func() {
+				msgArea.Add(msgBubble)
+				scrollArea.ScrollToBottom()
+			})
+			if err := utils.SendMessage(conn, displayName, msg.Text); err != nil {
+				dialog.ShowInformation("Error Sending Message", fmt.Sprintf("%s", err), w)
+			}
+			msg.SetText("")
 		}
-		msgBubble := generateMessageBubble(msg.Text, displayName, true)
-		fyne.Do(func() {
-			msgArea.Add(msgBubble)
-			scrollArea.ScrollToBottom()
-		})
-		if err := utils.SendMessage(conn, displayName, msg.Text); err != nil {
-			dialog.ShowInformation("Error Sending Message", fmt.Sprintf("%s", err), w)
-		}
-		msg.SetText("")
 	}
 
 	msgSend := widget.NewButtonWithIcon("", sendIcon, send)
