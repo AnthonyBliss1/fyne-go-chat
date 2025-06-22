@@ -54,5 +54,5 @@ fyne package -os darwin -icon icon.png
 ```bash
 cd chat
 export GOFLAGS="-buildvcs=false"
-fyne package -os darwin -icon icon.png
+fyne package -os windows -icon icon.png
 ```
