@@ -20,8 +20,8 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	utils "github.com/anthonybliss1/fyne-go-chat/ui/client"
-	ui "github.com/anthonybliss1/fyne-go-chat/ui/theme"
+	utils "github.com/anthonybliss1/fyne-go-chat/chat/client"
+	ui "github.com/anthonybliss1/fyne-go-chat/chat/theme"
 )
 
 //go:embed send.svg icon.png connect.svg
