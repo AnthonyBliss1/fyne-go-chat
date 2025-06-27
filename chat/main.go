@@ -24,23 +24,23 @@ import (
 	ui "github.com/anthonybliss1/fyne-go-chat/chat/theme"
 )
 
-//go:embed send.svg voice.svg icon.png connect.svg
+//go:embed icon.png assets/*
 var embeddedAssets embed.FS
 
 var sendIcon, voiceIcon, appIcon, connectIcon fyne.Resource
 
 func init() {
-	send, err := embeddedAssets.ReadFile("send.svg")
+	send, err := embeddedAssets.ReadFile("assets/send.svg")
 	if err != nil {
 		log.Panicf("failed to load send.svg: %q", err)
 	}
-	sendIcon = fyne.NewStaticResource("send.svg", send)
+	sendIcon = fyne.NewStaticResource("assets/send.svg", send)
 
-	voice, err := embeddedAssets.ReadFile("voice.svg")
+	voice, err := embeddedAssets.ReadFile("assets/voice.svg")
 	if err != nil {
 		log.Panicf("failed to load voice.svg: %q", err)
 	}
-	voiceIcon = fyne.NewStaticResource("voice.svg", voice)
+	voiceIcon = fyne.NewStaticResource("assets/voice.svg", voice)
 
 	icon, err := embeddedAssets.ReadFile("icon.png")
 	if err != nil {
@@ -48,11 +48,11 @@ func init() {
 	}
 	appIcon = fyne.NewStaticResource("icon.png", icon)
 
-	connect, err := embeddedAssets.ReadFile("connect.svg")
+	connect, err := embeddedAssets.ReadFile("assets/connect.svg")
 	if err != nil {
 		log.Panicf("failed to load connect.svg: %q", err)
 	}
-	connectIcon = fyne.NewStaticResource("connect.svg", connect)
+	connectIcon = fyne.NewStaticResource("assets/connect.svg", connect)
 }
 
 func generateConnectionWindow(a fyne.App) fyne.Window {

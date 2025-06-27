@@ -15,7 +15,6 @@ import (
 	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
 	"github.com/gordonklaus/portaudio"
-	"github.com/livekit/protocol/auth"
 	lksdk "github.com/livekit/server-sdk-go/v2"
 	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media"
@@ -81,19 +80,6 @@ func PlaySound(sound string) {
 			streamer.Close()
 		}),
 	))
-}
-
-func getJoinToken(apiKey, apiSecret, room, identity string) (string, error) {
-	at := auth.NewAccessToken(apiKey, apiSecret)
-	grant := &auth.VideoGrant{
-		RoomJoin: true,
-		Room:     room,
-	}
-	at.SetVideoGrant(grant).
-		SetIdentity(identity).
-		SetValidFor(time.Hour)
-
-	return at.ToJWT()
 }
 
 func StartVoice(roomName, identity, serverAddress string) error {
