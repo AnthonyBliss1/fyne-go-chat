@@ -24,10 +24,10 @@ import (
 	ui "github.com/anthonybliss1/fyne-go-chat/chat/theme"
 )
 
-//go:embed send.svg icon.png connect.svg
+//go:embed send.svg voice.svg icon.png connect.svg
 var embeddedAssets embed.FS
 
-var sendIcon, appIcon, connectIcon fyne.Resource
+var sendIcon, voiceIcon, appIcon, connectIcon fyne.Resource
 
 func init() {
 	send, err := embeddedAssets.ReadFile("send.svg")
@@ -35,6 +35,12 @@ func init() {
 		log.Panicf("failed to load send.svg: %q", err)
 	}
 	sendIcon = fyne.NewStaticResource("send.svg", send)
+
+	voice, err := embeddedAssets.ReadFile("voice.svg")
+	if err != nil {
+		log.Panicf("failed to load voice.svg: %q", err)
+	}
+	voiceIcon = fyne.NewStaticResource("voice.svg", voice)
 
 	icon, err := embeddedAssets.ReadFile("icon.png")
 	if err != nil {
@@ -64,13 +70,17 @@ func generateConnectionWindow(a fyne.App) fyne.Window {
 	serverAddress.SetPlaceHolder("Server Address")
 
 	connectBtn := widget.NewButtonWithIcon("Connect", connectIcon, func() {
-		conn, t := dialServer(w, displayName, serverAddress)
+		if displayName.Text == "" || serverAddress.Text == "" {
+			dialog.ShowInformation("Missing Credentials", "Please enter a display name and server address", w)
+		} else {
+			conn, t := dialServer(w, displayName, serverAddress)
 
-		if t {
-			w.Hide()
-			msgr := generateMessengerWindow(a, displayName.Text, conn)
-			msgr.CenterOnScreen()
-			msgr.Show()
+			if t {
+				w.Hide()
+				msgr := generateMessengerWindow(a, displayName.Text, serverAddress.Text, conn)
+				msgr.CenterOnScreen()
+				msgr.Show()
+			}
 		}
 	})
 
@@ -93,8 +103,10 @@ func generateConnectionWindow(a fyne.App) fyne.Window {
 	return w
 }
 
-func generateMessengerWindow(a fyne.App, displayName string, conn net.Conn) fyne.Window {
+func generateMessengerWindow(a fyne.App, displayName, serverAddress string, conn net.Conn) fyne.Window {
 	var isBanner = false
+	var voiceStart *widget.Button
+
 	w := a.NewWindow("Go Chat Messenger")
 
 	msgArea := container.New(layout.NewVBoxLayout())
@@ -138,9 +150,37 @@ Welcome to Go Chat!
 		}
 	}
 
+	startVoiceChat := func() {
+		if isBanner {
+			msgArea.Remove(goChatLabel)
+			isBanner = false
+		}
+		msg := fmt.Sprintf("%s Started a Voice Chat", displayName)
+		msgBubble := generateVoiceChatBubble(msg, true)
+		fyne.Do(func() {
+			msgArea.Add(msgBubble)
+			scrollArea.ScrollToBottom()
+		})
+		if err := utils.SendMessage(conn, displayName, msg); err != nil {
+			dialog.ShowInformation("Error Sending Message", fmt.Sprintf("%s", err), w)
+		}
+	}
+
 	msgSend := widget.NewButtonWithIcon("", sendIcon, send)
 
-	msgInput := container.NewBorder(nil, nil, nil, msgSend, msg)
+	voiceStart = widget.NewButtonWithIcon("", voiceIcon, func() {
+		fyne.Do(func() { voiceStart.Disable(); startVoiceChat() })
+		go func() {
+			if err := utils.StartVoice("GO_CHAT", displayName, serverAddress); err != nil {
+				dialog.ShowInformation("Error Starting Voice Chat", fmt.Sprint(err), w)
+				return
+			}
+		}()
+	})
+
+	btnBox := container.NewHBox(msgSend, voiceStart)
+
+	msgInput := container.NewBorder(nil, nil, nil, btnBox, msg)
 
 	w.SetContent(container.NewBorder(nil, msgInput, nil, nil, scrollArea))
 
@@ -180,6 +220,41 @@ func generateMessageBubble(msg string, displayName string, isUser bool) *fyne.Co
 		purple := color.NRGBA{R: 102, G: 12, B: 225, A: 100}
 		bubble = canvas.NewRectangle(purple)
 	}
+
+	bubble.CornerRadius = 12
+	bubble.SetMinSize(fyne.NewSize(400, 20))
+
+	content := container.NewBorder(nil, nameLabel, nil, nil, msgLabel)
+
+	if isUser {
+		return container.New(layout.NewHBoxLayout(),
+			layout.NewSpacer(),
+			container.NewStack(
+				bubble,
+				container.NewPadded(content),
+			),
+		)
+	} else {
+		return container.New(layout.NewHBoxLayout(),
+			container.NewStack(
+				bubble,
+				container.NewPadded(content),
+			),
+		)
+	}
+}
+
+func generateVoiceChatBubble(msg string, isUser bool) *fyne.Container {
+	var bubble *canvas.Rectangle
+
+	msgLabel := widget.NewLabel(msg)
+	msgLabel.Wrapping = fyne.TextWrapWord
+
+	nameLabel := canvas.NewText(" "+"<Server>", color.NRGBA{R: 128, G: 128, B: 128, A: 255})
+	nameLabel.TextSize = 12
+
+	orange := color.NRGBA{R: 224, G: 51, B: 11, A: 100}
+	bubble = canvas.NewRectangle(orange)
 
 	bubble.CornerRadius = 12
 	bubble.SetMinSize(fyne.NewSize(400, 20))

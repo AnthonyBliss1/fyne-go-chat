@@ -22,7 +22,6 @@ func (f *ForcedVariant) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) col
 }
 
 func (f *ForcedVariant) Font(s fyne.TextStyle) fyne.Resource {
-
 	return ResourceTabular
 }
 

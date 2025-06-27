@@ -4,14 +4,19 @@ import (
 	"bufio"
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/go-chi/chi"
 	"github.com/joho/godotenv"
+	"github.com/livekit/protocol/auth"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 )
@@ -191,6 +196,84 @@ func findPrompt(msg string) (bool, string) {
 	}
 }
 
+func getJoinToken(apiKey, apiSecret, room, identity string) (string, error) {
+	at := auth.NewAccessToken(apiKey, apiSecret)
+	grant := &auth.VideoGrant{
+		RoomJoin: true,
+		Room:     room,
+	}
+	at.SetVideoGrant(grant).
+		SetIdentity(identity).
+		SetValidFor(time.Hour)
+
+	return at.ToJWT()
+}
+
+func startTCP() {
+	listener, err := net.Listen("tcp", ":8000")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println("\nTCP Server listening on Port 8000...")
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+
+		go handleConnections(conn)
+	}
+}
+
+func tokenHandler() http.HandlerFunc {
+	type tokenResponse struct {
+		JWTToken string `json:"jwtToken"`
+		HostURL  string `json:"hostUrl"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		hostURL := os.Getenv("LIVEKIT_URL")
+		apiKey := os.Getenv("LIVEKIT_API_KEY")
+		apiSecret := os.Getenv("LIVEKIT_API_SECRET")
+
+		displayName := r.URL.Query().Get("name")
+
+		if displayName == "" {
+			http.Error(w, "'name' parameter required", http.StatusBadRequest)
+			return
+		}
+
+		joinToken, err := getJoinToken(apiKey, apiSecret, "GO_CHAT", displayName)
+		if err != nil {
+			log.Fatalf("failed to create join token: %q", err)
+		}
+
+		resp := tokenResponse{
+			JWTToken: joinToken,
+			HostURL:  hostURL,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			log.Printf("failed to write JSON: %v\n", err)
+		}
+	}
+}
+
+func startTokenServer() {
+	//client := &http.Client{}
+	r := chi.NewRouter()
+	r.Get("/token", tokenHandler())
+
+	fmt.Println("/token endpoint started on Port 8080")
+	log.Fatal(http.ListenAndServe("0.0.0.0:8080", r))
+}
+
 func main() {
 	//godotenv.Load(".env")
 	envMap, err := godotenv.Unmarshal(embeddedEnv)
@@ -204,21 +287,9 @@ func main() {
 
 	api_key = os.Getenv("OPENAI_API_KEY")
 
-	listener, err := net.Listen("tcp", ":8000")
-	if err != nil {
-		fmt.Println(err)
-	}
+	go startTCP()
+	go startTokenServer()
 
-	fmt.Println("\nServer listening on Port 8000")
-
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
-
-		go handleConnections(conn)
-	}
+	select {}
 
 }
