@@ -1,8 +1,23 @@
 # Go Chat GUI
 
-A chat room style project utilizing a TCP server (`server.go`) to broadcast messages to connected clients. Use `chat/main.go` to establish a connection to the server and send messages.
+A chat room style project utilizing a TCP server (`server.go`) to broadcast messages to connected clients. This application also utilizes WebRTC for realtime voice chat. Use `chat/main.go` to establish a connection to the server, send messages, and voice chat.
 
-The client side code, `chat/main.go`, will prompt the user for a server address to connect to. Also, `server.go` is currently set up to listen on `Port 8000` so make sure this port is not in use or change the port configuration in `chat/main.go` and `server.go`.
+The client side code, `chat/main.go`, will prompt the user for a server address to connect to. This server address will be the location of the deployed `server.go` build.
+
+## Server Setup
+The `server.go` code creates an HTTP server `(port 8080)` and a TCP server `(port 8000)`. Make sure these ports are not in use or change the port configuration in `chat/main.go` and `server.go`.
+
+The `server.go` file requires a `.env` file with multiple environment variables defined (outlined below).
+
+| Variable | Usage |
+| ------- | ----- |
+| OPENAI_API_KEY | OpenAI API Key required to use the #chat command |
+| LIVEKIT_URL | Livekit URL either pointing to a self-hosted or cloud instance |
+| LIVEKIT_API_KEY | Livekit API Key provided by self-hosted or cloud instance |
+| LIVEKIT_API_SECRET | Livekit API Secret provided by self-hosted or cloud instance |
+
+>[!IMPORTANT]
+>Livekit is a "batteries-included" solution to WebRTC implementation. Go Chat uses Livekit for realtime voice chat which means a Livekit server must be deployed either on your own machine or in the cloud. I recommend using Livekit's free builder plan which will make the Go Chat setup much easier.
 
 ## Commands
 ***Send commands with `#`***
@@ -27,6 +42,7 @@ git clone https://github.com/AnthonyBliss1/go-chat-gui.git
 ```bash
 go get fyne.io/fyne/v2@latest
 go install fyne.io/tools/cmd/fyne@latest
+go mod tidy
 ```
 
 3. **Run Server and Client Packages**
@@ -38,21 +54,7 @@ go run server/server.go
 go run chat/main.go
 ```
 
-4. **(Optional) Build Executable**
+4. **(Optional) Build Server Executable**
 ```bash
 go build -o builds/server ./server/server.go
-```
-
-***For MacOS***
-```bash
-cd chat
-export GOFLAGS="-buildvcs=false"
-fyne package -os darwin -icon icon.png
-```
-
-***For Windows***
-```bash
-cd chat
-export GOFLAGS="-buildvcs=false"
-fyne package -os windows -icon icon.png
 ```

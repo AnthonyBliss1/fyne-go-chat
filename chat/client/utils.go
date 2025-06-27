@@ -24,6 +24,8 @@ import (
 //go:embed sounds/*.mp3
 var soundAssets embed.FS
 
+var room *lksdk.Room
+
 func EstablishConnection(displayName string, raw_addy string) (net.Conn, error) {
 	serverAddress := strings.TrimSpace(raw_addy) + ":8000"
 
@@ -117,7 +119,7 @@ func StartVoice(roomName, identity, serverAddress string) error {
 		},
 	}
 
-	room, err := lksdk.ConnectToRoomWithToken(tr.HostUrl, tr.JoinToken, roomCB)
+	room, err = lksdk.ConnectToRoomWithToken(tr.HostUrl, tr.JoinToken, roomCB)
 	if err != nil {
 		return fmt.Errorf("unable to connect to room: %q", err)
 	}
@@ -210,4 +212,11 @@ func publishMic(lp *lksdk.LocalParticipant, identity string) {
 			}
 		}
 	}()
+}
+
+func RoomDisconnect() {
+	if room != nil {
+		room.Disconnect()
+		room = nil
+	}
 }

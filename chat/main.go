@@ -27,7 +27,7 @@ import (
 //go:embed icon.png assets/*
 var embeddedAssets embed.FS
 
-var sendIcon, voiceIcon, appIcon, connectIcon fyne.Resource
+var sendIcon, voiceIcon, appIcon, connectIcon, cancelIcon fyne.Resource
 
 func init() {
 	send, err := embeddedAssets.ReadFile("assets/send.svg")
@@ -53,6 +53,12 @@ func init() {
 		log.Panicf("failed to load connect.svg: %q", err)
 	}
 	connectIcon = fyne.NewStaticResource("assets/connect.svg", connect)
+
+	cancel, err := embeddedAssets.ReadFile("assets/cancel.svg")
+	if err != nil {
+		log.Panicf("failed to load cancel.svg: %q", err)
+	}
+	cancelIcon = fyne.NewStaticResource("assets/cancel.svg", cancel)
 }
 
 func generateConnectionWindow(a fyne.App) fyne.Window {
@@ -104,8 +110,8 @@ func generateConnectionWindow(a fyne.App) fyne.Window {
 }
 
 func generateMessengerWindow(a fyne.App, displayName, serverAddress string, conn net.Conn) fyne.Window {
-	var isBanner = false
-	var voiceStart *widget.Button
+	var isBanner, isVoice = false, false
+	var voiceBtn *widget.Button
 
 	w := a.NewWindow("Go Chat Messenger")
 
@@ -155,8 +161,9 @@ Welcome to Go Chat!
 			msgArea.Remove(goChatLabel)
 			isBanner = false
 		}
-		msg := fmt.Sprintf("%s Started a Voice Chat", displayName)
+		msg := fmt.Sprintf("%s Entered the Voice Chat", displayName)
 		msgBubble := generateVoiceChatBubble(msg, true)
+		utils.PlaySound("sounds/joinVC.mp3")
 		fyne.Do(func() {
 			msgArea.Add(msgBubble)
 			scrollArea.ScrollToBottom()
@@ -166,19 +173,40 @@ Welcome to Go Chat!
 		}
 	}
 
+	stopVoiceChat := func() {
+		msg := fmt.Sprintf("%s Left the Voice Chat", displayName)
+		msgBubble := generateVoiceChatBubble(msg, true)
+		utils.PlaySound("sounds/leaveVC.mp3")
+		fyne.Do(func() {
+			msgArea.Add(msgBubble)
+			scrollArea.ScrollToBottom()
+			voiceBtn.SetIcon(voiceIcon)
+		})
+		if err := utils.SendMessage(conn, displayName, msg); err != nil {
+			dialog.ShowInformation("Error Sending Message", fmt.Sprintf("%s", err), w)
+		}
+	}
+
 	msgSend := widget.NewButtonWithIcon("", sendIcon, send)
 
-	voiceStart = widget.NewButtonWithIcon("", voiceIcon, func() {
-		fyne.Do(func() { voiceStart.Disable(); startVoiceChat() })
-		go func() {
-			if err := utils.StartVoice("GO_CHAT", displayName, serverAddress); err != nil {
-				dialog.ShowInformation("Error Starting Voice Chat", fmt.Sprint(err), w)
-				return
-			}
-		}()
+	voiceBtn = widget.NewButtonWithIcon("", voiceIcon, func() {
+		if isVoice == false {
+			fyne.Do(func() { voiceBtn.SetIcon(cancelIcon); startVoiceChat() })
+			go func() {
+				if err := utils.StartVoice("GO_CHAT", displayName, serverAddress); err != nil {
+					dialog.ShowInformation("Error Starting Voice Chat", fmt.Sprint(err), w)
+					return
+				}
+			}()
+			isVoice = true
+		} else {
+			utils.RoomDisconnect()
+			fyne.Do(func() { stopVoiceChat() })
+			isVoice = false
+		}
 	})
 
-	btnBox := container.NewHBox(msgSend, voiceStart)
+	btnBox := container.NewHBox(msgSend, voiceBtn)
 
 	msgInput := container.NewBorder(nil, nil, nil, btnBox, msg)
 
