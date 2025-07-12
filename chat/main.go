@@ -350,8 +350,9 @@ func incomingMessage(conn net.Conn, msgArea *fyne.Container, scrollArea *contain
 			msgBubble = generateMessageBubble(strings.TrimRight(line, "\r\n"), "Server", false)
 			utils.PlaySound("sounds/noti.mp3")
 		}
+
 		fyne.CurrentApp().SendNotification(&fyne.Notification{
-			Title: "New Message",
+			Title: strings.TrimRight(line, "\r\n"),
 		})
 
 		fyne.Do(func() {

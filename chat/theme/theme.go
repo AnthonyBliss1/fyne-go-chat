@@ -28,6 +28,7 @@ func (f *ForcedVariant) Font(s fyne.TextStyle) fyne.Resource {
 func (f *ForcedVariant) Icon(name fyne.ThemeIconName) fyne.Resource {
 	return f.Theme.Icon(name)
 }
+
 func (f *ForcedVariant) Size(name fyne.ThemeSizeName) float32 {
 	return f.Theme.Size(name)
 }
